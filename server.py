@@ -22,9 +22,8 @@ SECRET_KEY = os.environ.get('JWT_SECRET', 'nocodeapp-secret-key-change-in-produc
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 
-# Password hashing
-# Use pbkdf2_sha256 to avoid bcrypt native backend issues in the dev environment
-pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+# Password hashing - support both bcrypt (old users) and pbkdf2_sha256 (new users)
+pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -348,16 +347,31 @@ async def register(user_data: UserCreate):
 
 @api_router.post("/auth/login", response_model=TokenResponse)
 async def login(credentials: UserLogin):
-    user = await db.users.find_one({"email": credentials.email})
-    if not user or not verify_password(credentials.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    
-    token = create_access_token({"sub": str(user["_id"])})
-    
-    return TokenResponse(
-        access_token=token,
-        user=serialize_user(user)
-    )
+    try:
+        user = await db.users.find_one({"email": credentials.email})
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        
+        try:
+            password_valid = verify_password(credentials.password, user["password"])
+        except Exception as pwd_error:
+            print(f"[LOGIN] Password verification error for {credentials.email}: {pwd_error}")
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        
+        if not password_valid:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        
+        token = create_access_token({"sub": str(user["_id"])})
+        
+        return TokenResponse(
+            access_token=token,
+            user=serialize_user(user)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[LOGIN] Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
