@@ -622,7 +622,7 @@ async def update_phone_settings(
 
 @api_router.get("/")
 async def root():
-    return {"message": "No-Code Mobile App Builder API", "version": "1.0"}
+    return {"message": "No-Code Mobile App Builder API", "version": "1.1", "deployed": "2026-01-12"}
 
 # Include router
 app.include_router(api_router)
