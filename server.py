@@ -36,10 +36,10 @@ app = FastAPI()
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
 
-# Configure CORS
+# Configure CORS - Allow all origins for mobile app access
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8085", "http://127.0.0.1:8085"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -612,14 +612,6 @@ async def root():
 
 # Include router
 app.include_router(api_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Configure logging
 logging.basicConfig(
